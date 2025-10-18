@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import "./styles.css";
 
 function Square({ value, onSquareClick }) {
@@ -11,15 +11,23 @@ function Square({ value, onSquareClick }) {
 
 function Board({ xIsNext, squares, onPlay }) {
   function handleClick(i) {
+    // Human plays X only; block clicks when it's O's turn
+    if (!xIsNext) return;
+
+    // Ignore if game over or cell filled
     if (calculateWinner(squares) || squares[i]) return;
+
     const next = squares.slice();
-    next[i] = xIsNext ? "X" : "O";
+    next[i] = "X";
     onPlay(next);
   }
 
   const winner = calculateWinner(squares);
+  const isDraw = !winner && !squares.includes(null);
   const status = winner
     ? "Winner: " + winner
+    : isDraw
+    ? "Draw!"
     : "Next player: " + (xIsNext ? "X" : "O");
 
   return (
@@ -61,13 +69,35 @@ export default function Game() {
     setCurrentMove(move);
   }
 
+  // Auto-move for O using minimax whenever it's O's turn
+  useEffect(() => {
+    if (xIsNext) return; // only act on O's turn
+    const winner = calculateWinner(currentSquares);
+    if (winner || !currentSquares.includes(null)) return; // stop if over/full
+
+    // Small delay feels natural; remove if you want instant
+    const t = setTimeout(() => {
+      const idx = findBestMove(currentSquares, "O");
+      if (idx != null) {
+        const next = currentSquares.slice();
+        next[idx] = "O";
+        handlePlay(next);
+      }
+    }, 150);
+
+    return () => clearTimeout(t);
+  }, [currentSquares, xIsNext]); // re-run when board or turn changes
+
   const moves = history.map((_, move) => {
     const here = move === currentMove;
     const label = move ? `Go to move #${move}` : "Go to game start";
     return (
       <li key={move}>
-        {here ? <span>You are at move #{move}</span> :
-                 <button onClick={() => jumpTo(move)}>{label}</button>}
+        {here ? (
+          <span>You are at move #{move}</span>
+        ) : (
+          <button onClick={() => jumpTo(move)}>{label}</button>
+        )}
       </li>
     );
   });
@@ -94,4 +124,46 @@ function calculateWinner(sq) {
     if (sq[a] && sq[a] === sq[b] && sq[a] === sq[c]) return sq[a];
   }
   return null;
+}
+
+/* ======== Challenge 5: Minimax AI ======== */
+
+function minimax(board, depth, isMaximizing) {
+  const winner = calculateWinner(board);
+  if (winner === "X") return 10 - depth;
+  if (winner === "O") return depth - 10;
+  if (!board.includes(null)) return 0; // draw
+
+  const player = isMaximizing ? "X" : "O";
+  let best = isMaximizing ? -Infinity : Infinity;
+
+  for (let i = 0; i < 9; i++) {
+    if (board[i] == null) {
+      const next = board.slice();
+      next[i] = player;
+      const score = minimax(next, depth + 1, !isMaximizing);
+      if (isMaximizing) best = Math.max(best, score);
+      else best = Math.min(best, score);
+    }
+  }
+  return best;
+}
+
+function findBestMove(board, player) {
+  const isMaximizing = player === "X";
+  let bestScore = isMaximizing ? -Infinity : Infinity;
+  let move = null;
+
+  for (let i = 0; i < 9; i++) {
+    if (board[i] == null) {
+      const next = board.slice();
+      next[i] = player;
+      const score = minimax(next, 0, !isMaximizing);
+      if (isMaximizing ? score > bestScore : score < bestScore) {
+        bestScore = score;
+        move = i;
+      }
+    }
+  }
+  return move;
 }
