@@ -61,6 +61,12 @@ export default function Game() {
     setCurrentMove(move);
   }
 
+  // ✅ NEW: reset to initial state
+  function handleReset() {
+    setHistory([Array(9).fill(null)]);
+    setCurrentMove(0);
+  }
+
   const moves = history.map((_, move) => {
     const here = move === currentMove;
     const label = move ? `Go to move #${move}` : "Go to game start";
@@ -79,10 +85,16 @@ export default function Game() {
       </div>
       <div className="game-info">
         <ol>{moves}</ol>
+
+        {/* ✅ NEW: Reset button */}
+        <button type="button" onClick={handleReset} style={{ marginTop: 8 }}>
+          Reset
+        </button>
       </div>
     </div>
   );
 }
+
 
 function calculateWinner(sq) {
   const lines = [
